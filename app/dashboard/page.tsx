@@ -52,11 +52,19 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-casaCream px-6 py-10">
       <section className="max-w-6xl mx-auto space-y-10">
-        <header>
-          <h1 className="text-3xl font-heading text-casaCoffee">
-            ¡Hola, {displayName.split(' ')[0]}! 👋
-          </h1>
-          <p className="text-casaCoffee/70">Aquí está tu resumen de Casa Boreal</p>
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-heading text-casaCoffee">
+              ¡Hola, {displayName.split(' ')[0]}! 👋
+            </h1>
+            <p className="text-casaCoffee/70">Aquí está tu resumen de Casa Boreal</p>
+          </div>
+          <a
+            href="/schedule"
+            className="inline-flex items-center gap-2 bg-casaOlive text-white px-6 py-3 rounded-xl font-semibold hover:bg-casaOlive/90 transition-all shadow-sm text-sm"
+          >
+            📅 Reservar Clase
+          </a>
         </header>
 
         <StatsGrid membership={membership} />

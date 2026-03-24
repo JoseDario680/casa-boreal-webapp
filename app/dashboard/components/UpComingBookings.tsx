@@ -18,8 +18,14 @@ export default function UpcomingBookings({
 
   if (!upcoming.length)
     return (
-      <div className="bg-white rounded-2xl p-6 border border-casaCoffee/10 text-casaCoffee/70">
+      <div className="bg-white rounded-2xl p-6 border border-casaCoffee/10 text-casaCoffee/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <p>No tienes clases próximas. ¡Reserva una para empezar! 💪</p>
+        <a
+          href="/schedule"
+          className="inline-flex items-center gap-2 bg-casaOlive text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-casaOlive/90 transition-all shadow-sm text-sm whitespace-nowrap"
+        >
+          📅 Ver Horarios
+        </a>
       </div>
     );
 
