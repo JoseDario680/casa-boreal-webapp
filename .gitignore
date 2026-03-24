@@ -46,3 +46,6 @@ next-env.d.ts
 prisma/
 pages.backup/
 scripts/
+
+.vercel
+.env*.local
