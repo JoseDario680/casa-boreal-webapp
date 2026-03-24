@@ -119,6 +119,17 @@ CREATE TRIGGER on_auth_user_created
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
+-- Helper function to check admin status (SECURITY DEFINER bypasses RLS)
+-- This prevents infinite recursion in admin policies that query the users table
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- Users table
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
@@ -133,19 +144,11 @@ CREATE POLICY "Users can update own profile"
 
 CREATE POLICY "Admins can read all users"
   ON users FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ADMIN'
-    )
-  );
+  USING (public.is_admin());
 
 CREATE POLICY "Admins can update all users"
   ON users FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ADMIN'
-    )
-  );
+  USING (public.is_admin());
 
 -- Plans table (public read, admin write)
 ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
@@ -156,19 +159,11 @@ CREATE POLICY "Anyone can read active plans"
 
 CREATE POLICY "Admins can read all plans"
   ON plans FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ADMIN'
-    )
-  );
+  USING (public.is_admin());
 
 CREATE POLICY "Admins can manage plans"
   ON plans FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ADMIN'
-    )
-  );
+  USING (public.is_admin());
 
 -- Memberships table
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
@@ -179,11 +174,7 @@ CREATE POLICY "Users can read own memberships"
 
 CREATE POLICY "Admins can manage all memberships"
   ON memberships FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ADMIN'
-    )
-  );
+  USING (public.is_admin());
 
 -- Classes table (public read, admin/instructor write)
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
@@ -194,11 +185,7 @@ CREATE POLICY "Anyone can read active classes"
 
 CREATE POLICY "Admins can manage classes"
   ON classes FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ADMIN'
-    )
-  );
+  USING (public.is_admin());
 
 -- Bookings table
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
@@ -218,11 +205,7 @@ CREATE POLICY "Users can cancel own bookings"
 
 CREATE POLICY "Admins can manage all bookings"
   ON bookings FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'ADMIN'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================
 -- SEED DATA — Plans
