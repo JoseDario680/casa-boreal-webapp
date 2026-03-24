@@ -1,34 +1,41 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import ScheduleCalendar from '../components/ScheduleCalendar';
-import BookingModal from '../components/BookingModal';
-
-// Simulación: hook para obtener créditos del usuario
-function useUserCredits() {
-  // Reemplaza con lógica real si tienes el hook
-  const [credits] = useState<number>(5);
-  return credits;
-}
+import ScheduleCalendar from '../../components/ScheduleCalendar';
+import BookingModal from '../../components/BookingModal';
 
 export default function SchedulePage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [calendarKey, setCalendarKey] = useState(0); // Para revalidar datos
-  const credits = useUserCredits();
+  const [calendarKey, setCalendarKey] = useState(0);
+  const [credits, setCredits] = useState<number>(0);
 
-  React.useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
-  }, [status, router]);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.push('/login');
+      } else {
+        setAuthChecked(true);
+        // Fetch credits
+        fetch('/api/user/membership')
+          .then(res => res.json())
+          .then(data => {
+            setCredits(data.active?.credits_remaining ?? 0);
+          })
+          .catch(() => setCredits(0));
+      }
+    });
+  }, [router]);
 
-  const handleReserve = (cls: any) => {
+  if (!authChecked) return null;
+
+  const _handleReserve = (cls: any) => {
     setSelectedClass(cls);
     setModalOpen(true);
   };
@@ -39,7 +46,12 @@ export default function SchedulePage() {
   };
 
   const handleSuccess = () => {
-    setCalendarKey(prev => prev + 1); // Forzar re-render/revalidación
+    setCalendarKey(prev => prev + 1);
+    // Refresh credits
+    fetch('/api/user/membership')
+      .then(res => res.json())
+      .then(data => setCredits(data.active?.credits_remaining ?? 0))
+      .catch(() => {});
   };
 
   return (
@@ -65,19 +77,4 @@ export default function SchedulePage() {
       </main>
     </div>
   );
-}
-
-// Protección con SSR
-export async function getServerSideProps(context: any) {
-  const { req } = context;
-  const session = req.cookies['next-auth.session-token'] || req.cookies['__Secure-next-auth.session-token'];
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/login',
-        permanent: false,
-      },
-    };
-  }
-  return { props: {} };
 }

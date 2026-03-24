@@ -1,55 +1,80 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
-import Tabs from '@/components/Tabs';
+import { createClient } from '@/lib/supabase/client';
 import ProfileSection from '@/components/ProfileSection';
 import AccountSection from '@/components/AccountSection';
 import NotificationsSection from '@/components/NotificationsSection';
 import PrivacySection from '@/components/PrivacySection';
 import MembershipSection from '@/components/MembershipSection';
-import Header from '@/components/Header';
 import PlaceholderSection from '@/components/PlaceholderSection';
 
-const SettingsPage = () => {
+const tabs = [
+  { key: 'profile', label: 'Perfil' },
+  { key: 'account', label: 'Cuenta' },
+  { key: 'membership', label: 'Membresía' },
+  { key: 'notifications', label: 'Notificaciones' },
+  { key: 'privacy', label: 'Privacidad' },
+];
+
+export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('profile');
+  const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const checkMembership = async () => {
-      try {
-        const response = await fetch('/api/user/membership');
-        const data = await response.json();
-
-        console.log('Membership check response:', data); // Depuración
-
-        // Verificar si la API devuelve explícitamente un destino de redirección
-        if (data.redirect) {
-          router.push(data.redirect);
-        }
-      } catch (error) {
-        console.error('Error checking membership:', error);
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.push('/login');
+      } else {
+        setAuthChecked(true);
       }
-    };
-
-    checkMembership();
+    });
   }, [router]);
 
+  if (!authChecked) return null;
+
   return (
-    <div className="settings-page">
-      <Header />
-      <Sidebar />
-      <main>
-        <Tabs activeSection={activeSection} setActiveSection={setActiveSection} />
-        {activeSection === 'profile' && <ProfileSection />}
-        {activeSection === 'account' && <AccountSection />}
-        {activeSection === 'notifications' && <NotificationsSection />}
-        {activeSection === 'privacy' && <PrivacySection />}
-        {activeSection === 'membership' && <MembershipSection />}
-        {activeSection === 'placeholder' && <PlaceholderSection />}
-      </main>
+    <div className="min-h-screen bg-casaCream">
+      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-casaCoffee/10">
+        <div className="max-w-5xl mx-auto px-6 py-4">
+          <h1 className="text-2xl font-heading font-semibold text-casaCoffee">Configuración</h1>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-8">
+        {/* Sidebar tabs */}
+        <nav className="md:w-56 flex-shrink-0">
+          <ul className="space-y-1">
+            {tabs.map((tab) => (
+              <li key={tab.key}>
+                <button
+                  onClick={() => setActiveSection(tab.key)}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    activeSection === tab.key
+                      ? 'bg-casaOlive text-white font-semibold'
+                      : 'text-casaCoffee hover:bg-casaCoffee/10'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Content */}
+        <main className="flex-1">
+          {activeSection === 'profile' && <ProfileSection />}
+          {activeSection === 'account' && <AccountSection />}
+          {activeSection === 'notifications' && <NotificationsSection />}
+          {activeSection === 'privacy' && <PrivacySection />}
+          {activeSection === 'membership' && <MembershipSection />}
+          {activeSection === 'placeholder' && <PlaceholderSection />}
+        </main>
+      </div>
     </div>
   );
-};
-
-export default SettingsPage;
+}

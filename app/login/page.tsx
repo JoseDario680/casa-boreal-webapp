@@ -1,33 +1,39 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { signIn } from 'next-auth/react';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import "@/app/globals.css";
+import '@/app/globals.css';
 
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [isError, setIsError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const result = await signIn('credentials', {
-      redirect: false,
+    setLoading(true);
+    setMessage('');
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    console.log('Resultado de signIn:', result);
-
-    if (result?.error) {
+    if (error) {
+      setIsError(true);
       setMessage('Error al iniciar sesión. Verifica tus credenciales.');
     } else {
+      setIsError(false);
       setMessage('Inicio de sesión exitoso.');
-      setTimeout(() => router.push('/dashboard'), 2000); // Redirige al panel de usuario después de 2 segundos
+      setTimeout(() => router.push('/dashboard'), 1000);
     }
+    setLoading(false);
   };
 
   return (
@@ -59,12 +65,15 @@ export default function Login() {
           </div>
           <button
             type="submit"
-            className="w-full bg-casaCoffee text-casaBeige py-3 rounded-lg font-medium hover:bg-casaOlive transition-all shadow-lg hover:shadow-xl"
+            disabled={loading}
+            className="w-full bg-casaCoffee text-casaBeige py-3 rounded-lg font-medium hover:bg-casaOlive transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
           >
-            Iniciar Sesión
+            {loading ? 'Iniciando...' : 'Iniciar Sesión'}
           </button>
         </form>
-        {message && <p className="mt-6 text-center text-red-500">{message}</p>}
+        {message && (
+          <p className={`mt-6 text-center ${isError ? 'text-red-500' : 'text-green-600'}`}>{message}</p>
+        )}
         <div className="mt-6 text-center">
           <p className="text-sm text-casaCoffee">
             ¿No tienes una cuenta?{' '}

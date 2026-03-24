@@ -1,23 +1,19 @@
-import { getToken } from 'next-auth/jwt';
-import { NextResponse } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-
-  const isAdminRoute = req.nextUrl.pathname.startsWith('/admin');
-
-  if (isAdminRoute && token.role !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/', req.url));
-  }
-
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  return await updateSession(request);
 }
 
 export const config = {
-  matcher: ['/protected/:path*', '/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (fonts.css, manifest.json, etc.)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|json)$).*)',
+  ],
 };

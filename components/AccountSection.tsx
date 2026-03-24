@@ -1,44 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
+import { createBrowserClient } from '@supabase/ssr';
 
 const AccountSection = () => {
-  const { register, handleSubmit, watch } = useForm();
+  const { register, handleSubmit, watch, reset } = useForm();
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const response = await fetch('/api/user/sessions');
-        if (!response.ok) throw new Error('Error al cargar sesiones activas');
-        const data = await response.json();
-        console.log(data); // Aquí puedes manejar las sesiones activas
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          toast.error(error.message);
-        } else {
-          toast.error('Error desconocido');
-        }
-      }
-    };
-    fetchSessions();
-  }, []);
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const onSubmit = async (data: Record<string, any>) => {
     setSaving(true);
     try {
-      const response = await fetch('/api/user/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      const { error } = await supabase.auth.updateUser({
+        password: data.newPassword,
       });
-      if (!response.ok) throw new Error('Error al actualizar la contraseña');
+      if (error) throw error;
       toast.success('Contraseña actualizada exitosamente');
+      reset();
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Error desconocido');
+        toast.error('Error al actualizar la contraseña');
       }
     } finally {
       setSaving(false);
@@ -58,14 +45,6 @@ const AccountSection = () => {
     <div className="bg-white rounded-2xl shadow-sm p-6">
       <h2 className="text-xl font-semibold mb-4">Cuenta</h2>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Contraseña actual</label>
-          <input
-            type="password"
-            {...register('currentPassword', { required: true })}
-            className="w-full border rounded-lg p-2"
-          />
-        </div>
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1">Nueva contraseña</label>
           <input

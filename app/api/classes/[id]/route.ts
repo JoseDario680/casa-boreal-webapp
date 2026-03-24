@@ -1,5 +1,97 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // ...existing code...
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('classes')
+    .select(`
+      *,
+      users!classes_instructor_id_fkey ( id, name ),
+      bookings ( id, user_id, status )
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Clase no encontrada' }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ...data,
+    instructor: data.users,
+    booked: (data.bookings || []).filter((b: { status: string }) => b.status === 'CONFIRMED').length,
+  });
+}
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (profile?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const { data, error } = await supabase
+    .from('classes')
+    .update(body)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (profile?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 });
+  }
+
+  const { error } = await supabase
+    .from('classes')
+    .update({ is_active: false })
+    .eq('id', id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ message: 'Clase desactivada' });
 }

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const privacyConfig = [
   { id: 'show_name', title: 'Mostrar mi nombre en lista de participantes', description: 'Permite que otros vean tu nombre en las listas de clase.' },

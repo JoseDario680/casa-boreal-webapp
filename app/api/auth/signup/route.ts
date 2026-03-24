@@ -1,37 +1,30 @@
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
-const prisma = new PrismaClient();
-
+// NOTE: Signup is now handled client-side via supabase.auth.signUp().
+// This route is kept as a server fallback if needed.
 export async function POST(req: Request) {
   try {
-    const { email, password, captchaToken } = await req.json();
+    const { email, password, name } = await req.json();
 
-    // Validate CAPTCHA token (optional, depending on your setup)
-    if (!captchaToken) {
-      return NextResponse.json({ error: 'CAPTCHA no válido.' }, { status: 400 });
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email y contraseña son requeridos.' }, { status: 400 });
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json({ error: 'El usuario ya existe.' }, { status: 409 });
-    }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create the user
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        role: 'CLIENTE', // Rol predeterminado
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name: name || '' },
       },
     });
 
-    return NextResponse.json({ message: 'Usuario creado exitosamente.', user: newUser });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ message: 'Usuario creado exitosamente.', userId: data.user?.id });
   } catch (error) {
     console.error('Error al registrar usuario:', error);
     return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });

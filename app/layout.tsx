@@ -1,8 +1,5 @@
 import './globals.css';
-import ClientLayout from './client-layout'; // asegúrate que la ruta sea correcta
-import SessionProvider from './SessionProvider';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: 'Casa Boreal - Barre en Puebla',
@@ -11,19 +8,12 @@ export const metadata = {
   icons: { icon: '/icon.svg' },
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
-
-  console.log('Sesión inicial:', session);
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body>
-        <SessionProvider session={session ?? undefined}>
-          <ClientLayout session={session ?? undefined}>
-            {children}
-          </ClientLayout>
-        </SessionProvider>
+        {children}
+        <Toaster position="top-right" />
       </body>
     </html>
   );

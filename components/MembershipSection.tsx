@@ -1,83 +1,90 @@
-import React, { useEffect } from 'react';
-import { toast } from 'react-toastify';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
+
+interface MembershipData {
+  active: {
+    id: string;
+    status: string;
+    credits_remaining: number;
+    end_date: string | null;
+    plans?: { name: string; price_cents: number } | null;
+  } | null;
+  history: Array<{
+    id: string;
+    status: string;
+    credits_remaining: number;
+    end_date: string | null;
+    plans?: { name: string; price_cents: number } | null;
+  }>;
+}
 
 const MembershipSection = () => {
-  const membership = {
-    plan: 'Premium',
-    creditsLeft: 10,
-    expirationDate: '2025-12-31',
-    status: 'Activa',
-  };
-
-  const paymentHistory = [
-    { date: '2025-01-01', plan: 'Premium', amount: '$50', method: 'Tarjeta', status: 'Completado' },
-    { date: '2024-12-01', plan: 'Básico', amount: '$30', method: 'PayPal', status: 'Completado' },
-  ];
+  const [data, setData] = useState<MembershipData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMembershipDetails = async () => {
+    const fetchMembership = async () => {
       try {
         const response = await fetch('/api/user/membership');
         if (!response.ok) throw new Error('Error al cargar detalles de membresía');
-        const data = await response.json();
-        console.log(data); // Aquí puedes manejar los detalles de membresía
+        const result = await response.json();
+        setData(result);
       } catch (error: unknown) {
-        if (error instanceof Error) {
-          toast.error(error.message);
-        } else {
-          toast.error('Error desconocido');
-        }
+        if (error instanceof Error) toast.error(error.message);
+        else toast.error('Error desconocido');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchMembershipDetails();
+    fetchMembership();
   }, []);
+
+  if (loading) return <div className="bg-white rounded-2xl shadow-sm p-6"><p className="text-gray-500">Cargando membresía...</p></div>;
+
+  const active = data?.active;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm p-6">
       <h2 className="text-xl font-semibold mb-4">Membresía</h2>
       <div className="mb-6">
-        <div className="p-4 bg-gray-100 rounded-lg">
-          <p className="text-sm font-medium">Plan: {membership.plan}</p>
-          <p className="text-sm">Créditos restantes: {membership.creditsLeft}</p>
-          <p className="text-sm">Fecha de vencimiento: {membership.expirationDate}</p>
-          <p className="text-sm">Estado: {membership.status}</p>
-        </div>
-        <div className="flex gap-4 mt-4">
-          <button className="bg-casaOlive text-white px-4 py-2 rounded-lg">
-            Renovar Membresía
-          </button>
-          <button className="bg-casaOlive text-white px-4 py-2 rounded-lg">
-            Cambiar Plan
-          </button>
-        </div>
+        {active ? (
+          <div className="p-4 bg-gray-100 rounded-lg">
+            <p className="text-sm font-medium">Plan: {active.plans?.name ?? 'Sin plan'}</p>
+            <p className="text-sm">Créditos restantes: {active.credits_remaining}</p>
+            <p className="text-sm">Fecha de vencimiento: {active.end_date ? new Date(active.end_date).toLocaleDateString() : '-'}</p>
+            <p className="text-sm">Estado: <span className="font-medium text-green-600">Activa</span></p>
+          </div>
+        ) : (
+          <div className="p-4 bg-gray-100 rounded-lg">
+            <p className="text-sm text-gray-500">No tienes una membresía activa.</p>
+          </div>
+        )}
       </div>
-      <h3 className="text-lg font-semibold mb-4">Historial de Pagos</h3>
-      <table className="w-full text-sm">
-        <thead>
-          <tr>
-            <th className="border-b p-2 text-left">Fecha</th>
-            <th className="border-b p-2 text-left">Plan</th>
-            <th className="border-b p-2 text-left">Monto</th>
-            <th className="border-b p-2 text-left">Método</th>
-            <th className="border-b p-2 text-left">Estado</th>
-            <th className="border-b p-2 text-left">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paymentHistory.map((payment, index) => (
-            <tr key={index}>
-              <td className="border-b p-2">{payment.date}</td>
-              <td className="border-b p-2">{payment.plan}</td>
-              <td className="border-b p-2">{payment.amount}</td>
-              <td className="border-b p-2">{payment.method}</td>
-              <td className="border-b p-2">{payment.status}</td>
-              <td className="border-b p-2">
-                <button className="text-blue-500 hover:underline">Descargar factura</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {data?.history && data.history.length > 0 && (
+        <>
+          <h3 className="text-lg font-semibold mb-4">Historial</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <th className="border-b p-2 text-left">Plan</th>
+                <th className="border-b p-2 text-left">Créditos</th>
+                <th className="border-b p-2 text-left">Fin</th>
+                <th className="border-b p-2 text-left">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.history.map((m) => (
+                <tr key={m.id}>
+                  <td className="border-b p-2">{m.plans?.name ?? '-'}</td>
+                  <td className="border-b p-2">{m.credits_remaining}</td>
+                  <td className="border-b p-2">{m.end_date ? new Date(m.end_date).toLocaleDateString() : '-'}</td>
+                  <td className="border-b p-2">{m.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
     </div>
   );
 };

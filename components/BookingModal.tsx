@@ -47,7 +47,7 @@ export default function BookingModal({ classData, isOpen, onClose, onSuccess, cr
       } else {
         setError(data.error || 'Error al reservar');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error al reservar');
     }
     setLoading(false);

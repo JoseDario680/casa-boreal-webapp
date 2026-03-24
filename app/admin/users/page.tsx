@@ -6,26 +6,25 @@ import { UsersIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 interface User {
   id: string;
   email: string;
-  isAdmin: boolean;
-  createdAt?: string;
+  name: string | null;
+  role: string;
+  created_at: string;
 }
 
 export default function UsersAdminPage() {
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    fetch('/api/admin/users')
-      .then(res => res.json())
-      .then(setUsers);
+    refreshUsers();
   }, []);
 
-  const handlePromote = async (id: string) => {
-    await fetch(`/api/admin/users/${id}/promote`, { method: 'POST' });
-    refreshUsers();
-  };
-
-  const handleDemote = async (id: string) => {
-    await fetch(`/api/admin/users/${id}/demote`, { method: 'POST' });
+  const handleToggleRole = async (id: string, currentRole: string) => {
+    const newRole = currentRole === 'ADMIN' ? 'CLIENTE' : 'ADMIN';
+    await fetch(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: newRole }),
+    });
     refreshUsers();
   };
 
@@ -38,7 +37,7 @@ export default function UsersAdminPage() {
 
   const refreshUsers = async () => {
     const res = await fetch('/api/admin/users');
-    setUsers(await res.json());
+    if (res.ok) setUsers(await res.json());
   };
 
   return (
@@ -52,7 +51,8 @@ export default function UsersAdminPage() {
           <thead>
             <tr>
               <th className="py-2 px-4 border-b">Email</th>
-              <th className="py-2 px-4 border-b">Admin</th>
+              <th className="py-2 px-4 border-b">Nombre</th>
+              <th className="py-2 px-4 border-b">Rol</th>
               <th className="py-2 px-4 border-b">Creado</th>
               <th className="py-2 px-4 border-b">Acciones</th>
             </tr>
@@ -61,22 +61,24 @@ export default function UsersAdminPage() {
             {users.map((user) => (
               <tr key={user.id} className="border-b hover:bg-gray-50 transition">
                 <td className="py-2 px-4">{user.email}</td>
+                <td className="py-2 px-4">{user.name ?? '-'}</td>
                 <td className="py-2 px-4">
-                  {user.isAdmin ? (
+                  {user.role === 'ADMIN' ? (
                     <span className="inline-flex items-center px-2 py-1 text-xs font-bold bg-green-100 text-green-700 rounded">
                       <ShieldCheckIcon className="h-4 w-4 mr-1" /> Admin
                     </span>
+                  ) : user.role === 'INSTRUCTOR' ? (
+                    <span className="inline-block px-2 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded">Instructor</span>
                   ) : (
-                    <span className="inline-block px-2 py-1 text-xs font-bold bg-gray-200 text-gray-700 rounded">Usuario</span>
+                    <span className="inline-block px-2 py-1 text-xs font-bold bg-gray-200 text-gray-700 rounded">Cliente</span>
                   )}
                 </td>
-                <td className="py-2 px-4">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
+                <td className="py-2 px-4">{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
                 <td className="py-2 px-4 space-x-2">
-                  {!user.isAdmin && (
-                    <button className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition" onClick={() => handlePromote(user.id)}>Promover</button>
-                  )}
-                  {user.isAdmin && (
-                    <button className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition" onClick={() => handleDemote(user.id)}>Quitar Admin</button>
+                  {user.role !== 'ADMIN' ? (
+                    <button className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition" onClick={() => handleToggleRole(user.id, user.role)}>Promover</button>
+                  ) : (
+                    <button className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition" onClick={() => handleToggleRole(user.id, user.role)}>Quitar Admin</button>
                   )}
                   <button className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition" onClick={() => handleDelete(user.id)}>Eliminar</button>
                 </td>

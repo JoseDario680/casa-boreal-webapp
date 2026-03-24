@@ -8,7 +8,15 @@ export default function UpcomingBookings({
   bookings: any[];
   onCancel: (id: string) => void;
 }) {
-  if (!bookings?.length)
+  // Filter to only upcoming confirmed bookings
+  const upcoming = bookings?.filter(
+    (b) =>
+      b.status === 'CONFIRMED' &&
+      b.classes &&
+      new Date(b.classes.start_time) > new Date()
+  ) ?? [];
+
+  if (!upcoming.length)
     return (
       <div className="bg-white rounded-2xl p-6 border border-casaCoffee/10 text-casaCoffee/70">
         <p>No tienes clases próximas. ¡Reserva una para empezar! 💪</p>
@@ -18,15 +26,15 @@ export default function UpcomingBookings({
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-heading text-casaCoffee">Tus próximas clases</h2>
-      {bookings.map((booking) => (
+      {upcoming.map((booking) => (
         <div
           key={booking.id}
           className="bg-white border border-casaCoffee/10 p-5 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all"
         >
           <div>
-            <h3 className="font-semibold text-casaCoffee">{booking.class.name}</h3>
+            <h3 className="font-semibold text-casaCoffee">{booking.classes?.name}</h3>
             <p className="text-sm text-casaCoffee/70">
-              {booking.class.instructor} · {new Date(booking.class.startTime).toLocaleString()}
+              {booking.classes?.users?.name ?? 'Instructor'} · {new Date(booking.classes?.start_time).toLocaleString('es-MX')}
             </p>
           </div>
           <button

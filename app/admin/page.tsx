@@ -1,31 +1,32 @@
 'use client';
 
-import { getSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 import { UsersIcon, CreditCardIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 interface User {
   id: string;
   email: string;
-  isAdmin: boolean;
-  createdAt?: string;
+  name: string | null;
+  role: string;
+  is_active: boolean;
+  created_at?: string;
 }
 
 interface Membership {
   id: string;
-  planId: string;
-  isActive: boolean;
-  creditsLeft?: number;
-  endDate?: string;
-  userEmail?: string;
-  plan?: {
+  plan_id: string;
+  user_id: string;
+  status: string;
+  credits_remaining?: number | null;
+  end_date?: string;
+  users?: { id: string; email: string; name: string | null };
+  plans?: {
     id: string;
     name: string;
-    description: string;
-    price: number;
-    credits: number;
+    price_cents: number;
+    classes_per_month: number | null;
   };
 }
 
@@ -34,72 +35,67 @@ export default function AdminPanel() {
   const [users, setUsers] = useState<User[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
-  // User actions
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
-  // Membership actions
   const [membershipEditId, setMembershipEditId] = useState<string | null>(null);
   const [editCredits, setEditCredits] = useState<number>(0);
-  const [editActive, setEditActive] = useState<boolean>(false);
+  const [editStatus, setEditStatus] = useState<string>('ACTIVE');
   const [editFeedback, setEditFeedback] = useState<string>('');
   const [showCreateMembership, setShowCreateMembership] = useState(false);
   const [newMembership, setNewMembership] = useState({
     userEmail: '',
-  planId: '',
-    creditsLeft: 0,
-    endDate: '',
-    isActive: true,
+    plan_id: '',
+    credits_remaining: 0,
+    end_date: '',
+    status: 'ACTIVE',
   });
   const [createFeedback, setCreateFeedback] = useState('');
-  // Plan actions
   const [showCreatePlan, setShowCreatePlan] = useState(false);
   const [editPlanId, setEditPlanId] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState({ name: '', description: '', price: 0, credits: 0 });
+  const [planForm, setPlanForm] = useState({ name: '', description: '', price_cents: 0, classes_per_month: 0 });
   const [planFeedback, setPlanFeedback] = useState('');
-
-  const [isMounted, setIsMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      async function checkAdmin() {
-        const session = await getSession();
-        console.log('Session:', session); // Debugging session data
-        if (session?.user?.isAdmin) {
-          setIsAdmin(true);
-          fetchData();
-        } else {
-          router.push('/');
-        }
-      }
-
-      async function fetchData() {
-        const usersResponse = await fetch('/api/admin/users');
-        const membershipsResponse = await fetch('/api/admin/memberships');
-        const plansResponse = await fetch('/api/admin/plans');
-
-        if (usersResponse.ok && membershipsResponse.ok && plansResponse.ok) {
-          setUsers(await usersResponse.json());
-          setMemberships(await membershipsResponse.json());
-          setPlans(await plansResponse.json());
-        }
-      }
-
-      checkAdmin();
+    async function checkAdmin() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push('/login'); return; }
+      const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+      if (profile?.role !== 'ADMIN') { router.push('/'); return; }
+      setIsAdmin(true);
+      fetchData();
     }
-  }, [isMounted, router]);
+    async function fetchData() {
+      const [usersRes, membershipsRes, plansRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/admin/memberships'),
+        fetch('/api/admin/plans'),
+      ]);
+      if (usersRes.ok) setUsers(await usersRes.json());
+      if (membershipsRes.ok) setMemberships(await membershipsRes.json());
+      if (plansRes.ok) setPlans(await plansRes.json());
+      setLoading(false);
+    }
+    checkAdmin();
+  }, [router]);
 
   // User management actions
   const handlePromote = async (id: string) => {
-    await fetch(`/api/admin/users/${id}/promote`, { method: 'POST' });
+    await fetch(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'ADMIN' }),
+    });
     refreshUsers();
   };
   const handleDemote = async (id: string) => {
-    await fetch(`/api/admin/users/${id}/demote`, { method: 'POST' });
+    await fetch(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'CLIENTE' }),
+    });
     refreshUsers();
   };
   const handleDelete = async (id: string) => {
@@ -123,17 +119,23 @@ export default function AdminPanel() {
     const res = await fetch('/api/admin/memberships', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newMembership),
+      body: JSON.stringify({
+        userEmail: newMembership.userEmail,
+        plan_id: newMembership.plan_id,
+        credits_remaining: newMembership.credits_remaining,
+        end_date: newMembership.end_date,
+        status: newMembership.status,
+      }),
     });
     if (res.ok) {
       setCreateFeedback('¡Membresía creada!');
       setTimeout(() => setCreateFeedback(''), 2000);
       setShowCreateMembership(false);
-      setNewMembership({ userEmail: '', planId: '', creditsLeft: 0, endDate: '', isActive: true });
-      const res2 = await fetch('/api/admin/memberships');
-      setMemberships(await res2.json());
+      setNewMembership({ userEmail: '', plan_id: '', credits_remaining: 0, end_date: '', status: 'ACTIVE' });
+      refreshMemberships();
     } else {
-      setCreateFeedback('Error al crear membresía');
+      const err = await res.json();
+      setCreateFeedback(err.error || 'Error al crear membresía');
     }
   };
   const refreshMemberships = async () => {
@@ -152,7 +154,7 @@ export default function AdminPanel() {
       setPlanFeedback('¡Plan creado!');
       setTimeout(() => setPlanFeedback(''), 2000);
       setShowCreatePlan(false);
-      setPlanForm({ name: '', description: '', price: 0, credits: 0 });
+      setPlanForm({ name: '', description: '', price_cents: 0, classes_per_month: 0 });
       const res2 = await fetch('/api/admin/plans');
       setPlans(await res2.json());
     } else {
@@ -162,7 +164,7 @@ export default function AdminPanel() {
 
   const handleEditPlan = (plan: any) => {
     setEditPlanId(plan.id);
-    setPlanForm({ name: plan.name, description: plan.description, price: plan.price, credits: plan.credits });
+    setPlanForm({ name: plan.name, description: plan.description || '', price_cents: plan.price_cents, classes_per_month: plan.classes_per_month || 0 });
   };
 
   const saveEditPlan = async () => {
@@ -192,10 +194,10 @@ export default function AdminPanel() {
     }
   };
 
-  console.log('Router context:', router); // Debug log for router context
+  console.log('Admin state:', { isAdmin, loading });
 
-  if (!users.length && !memberships.length && !plans.length) {
-    return <p>Loading...</p>;
+  if (loading) {
+    return <p className="flex items-center justify-center min-h-screen">Cargando...</p>;
   }
 
   return (
@@ -255,20 +257,20 @@ export default function AdminPanel() {
                     <tr key={user.id} className="border-b hover:bg-gray-50 transition">
                       <td className="py-2 px-4">{user.email}</td>
                       <td className="py-2 px-4">
-                        {user.isAdmin ? (
+                        {user.role === 'ADMIN' ? (
                           <span className="inline-flex items-center px-2 py-1 text-xs font-bold bg-green-100 text-green-700 rounded">
                             <ShieldCheckIcon className="h-4 w-4 mr-1" /> Admin
                           </span>
                         ) : (
-                          <span className="inline-block px-2 py-1 text-xs font-bold bg-gray-200 text-gray-700 rounded">Usuario</span>
+                          <span className="inline-block px-2 py-1 text-xs font-bold bg-gray-200 text-gray-700 rounded">{user.role}</span>
                         )}
                       </td>
-                      <td className="py-2 px-4">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
+                      <td className="py-2 px-4">{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
                       <td className="py-2 px-4 space-x-2">
-                        {!user.isAdmin && (
+                        {user.role !== 'ADMIN' && (
                           <button className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition" onClick={() => handlePromote(user.id)}>Promover</button>
                         )}
-                        {user.isAdmin && (
+                        {user.role === 'ADMIN' && (
                           <button className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition" onClick={() => handleDemote(user.id)}>Quitar Admin</button>
                         )}
                         <button className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition" onClick={() => handleDelete(user.id)}>Eliminar</button>
@@ -312,7 +314,7 @@ export default function AdminPanel() {
                   </div>
                   <div className="mb-2">
                     <label className="block mb-1">Plan</label>
-                    <select className="border rounded px-2 py-1 w-full" value={newMembership.planId} onChange={e => setNewMembership({ ...newMembership, planId: e.target.value })}>
+                    <select className="border rounded px-2 py-1 w-full" value={newMembership.plan_id} onChange={e => setNewMembership({ ...newMembership, plan_id: e.target.value })}>
                       <option value="">Selecciona un plan</option>
                       {plans.map(plan => (
                         <option key={plan.id} value={plan.id}>{plan.name}</option>
@@ -321,15 +323,19 @@ export default function AdminPanel() {
                   </div>
                   <div className="mb-2">
                     <label className="block mb-1">Créditos</label>
-                    <input type="number" className="border rounded px-2 py-1 w-full" value={newMembership.creditsLeft} onChange={e => setNewMembership({ ...newMembership, creditsLeft: Number(e.target.value) })} />
+                    <input type="number" className="border rounded px-2 py-1 w-full" value={newMembership.credits_remaining} onChange={e => setNewMembership({ ...newMembership, credits_remaining: Number(e.target.value) })} />
                   </div>
                   <div className="mb-2">
                     <label className="block mb-1">Fecha de fin</label>
-                    <input type="date" className="border rounded px-2 py-1 w-full" value={newMembership.endDate} onChange={e => setNewMembership({ ...newMembership, endDate: e.target.value })} />
+                    <input type="date" className="border rounded px-2 py-1 w-full" value={newMembership.end_date} onChange={e => setNewMembership({ ...newMembership, end_date: e.target.value })} />
                   </div>
                   <div className="mb-4">
-                    <label className="block mb-1">Activa</label>
-                    <input type="checkbox" checked={newMembership.isActive} onChange={e => setNewMembership({ ...newMembership, isActive: e.target.checked })} />
+                    <label className="block mb-1">Estado</label>
+                    <select className="border rounded px-2 py-1 w-full" value={newMembership.status} onChange={e => setNewMembership({ ...newMembership, status: e.target.value })}>
+                      <option value="ACTIVE">Activa</option>
+                      <option value="EXPIRED">Expirada</option>
+                      <option value="CANCELLED">Cancelada</option>
+                    </select>
                   </div>
                   {createFeedback && <div className="mb-2 text-green-600">{createFeedback}</div>}
                   <div className="flex justify-end space-x-2">
@@ -343,19 +349,19 @@ export default function AdminPanel() {
               {memberships.map((membership) => (
                 <li key={membership.id} className="border rounded p-2 flex flex-col md:flex-row justify-between items-center">
                   <div className="flex-1">
-                    <div><span className="font-bold">Plan:</span> {membership.plan?.name ?? '-'}</div>
-                    <div><span className="font-bold">Email:</span> {membership.userEmail}</div>
-                    <div><span className="font-bold">Créditos:</span> {membership.creditsLeft ?? '-'}</div>
-                    <div><span className="font-bold">Fin:</span> {membership.endDate ? new Date(membership.endDate).toLocaleDateString() : '-'}</div>
+                    <div><span className="font-bold">Plan:</span> {membership.plans?.name ?? '-'}</div>
+                    <div><span className="font-bold">Email:</span> {membership.users?.email ?? '-'}</div>
+                    <div><span className="font-bold">Créditos:</span> {membership.credits_remaining ?? '-'}</div>
+                    <div><span className="font-bold">Fin:</span> {membership.end_date ? new Date(membership.end_date).toLocaleDateString() : '-'}</div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className={membership.isActive ? "px-2 py-1 text-xs font-bold bg-green-100 text-green-700 rounded" : "px-2 py-1 text-xs font-bold bg-gray-200 text-gray-700 rounded"}>
-                      {membership.isActive ? 'Activa' : 'Inactiva'}
+                    <span className={membership.status === 'ACTIVE' ? "px-2 py-1 text-xs font-bold bg-green-100 text-green-700 rounded" : "px-2 py-1 text-xs font-bold bg-gray-200 text-gray-700 rounded"}>
+                      {membership.status}
                     </span>
                     <button className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition" onClick={() => {
                       setMembershipEditId(membership.id);
-                      setEditCredits(membership.creditsLeft ?? 0);
-                      setEditActive(membership.isActive);
+                      setEditCredits(membership.credits_remaining ?? 0);
+                      setEditStatus(membership.status);
                     }}>Editar</button>
                   </div>
                 </li>
@@ -367,39 +373,26 @@ export default function AdminPanel() {
                 <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
                   <h3 className="text-lg font-bold mb-4">Editar Membresía</h3>
                   <div className="mb-2">
-                    <label className="block mb-1">Plan</label>
-                    <select className="border rounded px-2 py-1 w-full" value={(() => {
-                      const membership = memberships.find(m => m.id === membershipEditId);
-                      return membership?.planId || '';
-                    })()} onChange={e => {
-                      const membership = memberships.find(m => m.id === membershipEditId);
-                      if (membership) membership.planId = e.target.value;
-                      // For controlled input, you may want to use a state for editPlanId, but for simplicity we update directly
-                    }}>
-                      <option value="">Selecciona un plan</option>
-                      {plans.map(plan => (
-                        <option key={plan.id} value={plan.id}>{plan.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-2">
                     <label className="block mb-1">Créditos</label>
                     <input type="number" className="border rounded px-2 py-1 w-full" value={editCredits} onChange={e => setEditCredits(Number(e.target.value))} />
                   </div>
                   <div className="mb-4">
-                    <label className="block mb-1">Activa</label>
-                    <input type="checkbox" checked={editActive} onChange={e => setEditActive(e.target.checked)} />
+                    <label className="block mb-1">Estado</label>
+                    <select className="border rounded px-2 py-1 w-full" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
+                      <option value="ACTIVE">Activa</option>
+                      <option value="EXPIRED">Expirada</option>
+                      <option value="CANCELLED">Cancelada</option>
+                    </select>
                   </div>
                   {editFeedback && <div className="mb-2 text-green-600">{editFeedback}</div>}
                   <div className="flex justify-end space-x-2">
                     <button className="bg-gray-300 px-4 py-2 rounded" onClick={() => setMembershipEditId(null)}>Cancelar</button>
                     <button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={async () => {
                       if (membershipEditId) {
-                        const membership = memberships.find(m => m.id === membershipEditId);
                         const res = await fetch(`/api/admin/memberships/${membershipEditId}`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ creditsLeft: editCredits, isActive: editActive, planId: membership?.planId }),
+                          body: JSON.stringify({ credits_remaining: editCredits, status: editStatus }),
                         });
                         if (res.ok) {
                           setEditFeedback('¡Membresía actualizada!');
@@ -440,12 +433,12 @@ export default function AdminPanel() {
                     <input type="text" className="border rounded px-2 py-1 w-full" value={planForm.description} onChange={e => setPlanForm({ ...planForm, description: e.target.value })} />
                   </div>
                   <div className="mb-2">
-                    <label className="block mb-1">Precio</label>
-                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.price} onChange={e => setPlanForm({ ...planForm, price: Number(e.target.value) })} />
+                    <label className="block mb-1">Precio (centavos)</label>
+                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.price_cents} onChange={e => setPlanForm({ ...planForm, price_cents: Number(e.target.value) })} />
                   </div>
                   <div className="mb-4">
-                    <label className="block mb-1">Créditos</label>
-                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.credits} onChange={e => setPlanForm({ ...planForm, credits: Number(e.target.value) })} />
+                    <label className="block mb-1">Clases por mes</label>
+                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.classes_per_month} onChange={e => setPlanForm({ ...planForm, classes_per_month: Number(e.target.value) })} />
                   </div>
                   {planFeedback && <div className="mb-2 text-green-600">{planFeedback}</div>}
                   <div className="flex justify-end space-x-2">
@@ -469,12 +462,12 @@ export default function AdminPanel() {
                     <input type="text" className="border rounded px-2 py-1 w-full" value={planForm.description} onChange={e => setPlanForm({ ...planForm, description: e.target.value })} />
                   </div>
                   <div className="mb-2">
-                    <label className="block mb-1">Precio</label>
-                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.price} onChange={e => setPlanForm({ ...planForm, price: Number(e.target.value) })} />
+                    <label className="block mb-1">Precio (centavos)</label>
+                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.price_cents} onChange={e => setPlanForm({ ...planForm, price_cents: Number(e.target.value) })} />
                   </div>
                   <div className="mb-4">
-                    <label className="block mb-1">Créditos</label>
-                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.credits} onChange={e => setPlanForm({ ...planForm, credits: Number(e.target.value) })} />
+                    <label className="block mb-1">Clases por mes</label>
+                    <input type="number" className="border rounded px-2 py-1 w-full" value={planForm.classes_per_month} onChange={e => setPlanForm({ ...planForm, classes_per_month: Number(e.target.value) })} />
                   </div>
                   {planFeedback && <div className="mb-2 text-green-600">{planFeedback}</div>}
                   <div className="flex justify-end space-x-2">
@@ -489,9 +482,9 @@ export default function AdminPanel() {
                 <li key={plan.id} className="border rounded p-2 flex flex-col md:flex-row justify-between items-center">
                   <div className="flex-1">
                     <div><span className="font-bold">Nombre:</span> {plan.name}</div>
-                    <div><span className="font-bold">Descripción:</span> {plan.description}</div>
-                    <div><span className="font-bold">Precio:</span> ${plan.price}</div>
-                    <div><span className="font-bold">Créditos:</span> {plan.credits}</div>
+                    <div><span className="font-bold">Descripción:</span> {plan.description || '-'}</div>
+                    <div><span className="font-bold">Precio:</span> ${(plan.price_cents / 100).toFixed(2)}</div>
+                    <div><span className="font-bold">Clases/mes:</span> {plan.classes_per_month ?? 'Ilimitado'}</div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <button className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition" onClick={() => handleEditPlan(plan)}>Editar</button>
