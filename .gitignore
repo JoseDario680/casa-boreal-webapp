@@ -42,6 +42,7 @@ next-env.d.ts
 
 /lib/generated/prisma
 
-# SQLite database (old Prisma)
-prisma/dev.db
-prisma/dev.db-journal
+# Old Prisma files (migrated to Supabase)
+prisma/
+pages.backup/
+scripts/
