@@ -46,7 +46,7 @@ const PrivacySection = () => {
         ))}
       </ul>
       <div className="mt-6">
-        <button className="bg-casaOlive text-white px-4 py-2 rounded-lg">
+        <button className="bg-casaCoffee text-white px-5 py-2.5 rounded-xl font-semibold hover:brightness-110 transition-all shadow-sm">
           Descargar mi información
         </button>
         <a href="/privacy-policy" className="text-blue-500 ml-4 hover:underline">

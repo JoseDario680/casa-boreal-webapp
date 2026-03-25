@@ -90,7 +90,7 @@ export default function Signup() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-casaCoffee text-casaBeige py-3 rounded-lg font-medium hover:bg-casaOlive transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+            className="w-full bg-casaCoffee text-white py-3 rounded-xl font-semibold hover:brightness-110 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
           >
             {loading ? 'Creando cuenta...' : 'Registrarse'}
           </button>

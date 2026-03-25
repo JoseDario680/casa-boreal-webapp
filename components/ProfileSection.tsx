@@ -94,14 +94,14 @@ const ProfileSection = () => {
         <div className="flex gap-4">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+            className="bg-casaCoffee hover:brightness-110 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-sm"
             disabled={saving}
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
           <button
             type="button"
-            className="border px-4 py-2 rounded-lg"
+            className="border-2 border-casaCoffee/20 text-casaCoffee px-5 py-2.5 rounded-xl font-semibold hover:bg-casaBeige transition-all"
             onClick={() => reset()}
           >
             Cancelar

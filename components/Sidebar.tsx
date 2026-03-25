@@ -4,12 +4,12 @@ const Sidebar = ({ activeSection, setActiveSection }: { activeSection: string; s
   const sections = ['profile', 'account', 'notifications', 'privacy', 'membership'];
 
   return (
-    <div className="w-64 bg-gray-100 p-4">
+    <div className="w-64 bg-casaCream p-4 rounded-2xl">
       <ul>
         {sections.map(section => (
           <li
             key={section}
-            className={`p-2 cursor-pointer rounded-lg transition-colors ${activeSection === section ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-200'}`}
+            className={`p-2.5 cursor-pointer rounded-xl transition-all font-medium ${activeSection === section ? 'bg-casaCoffee text-white shadow-sm' : 'text-casaCoffee hover:bg-casaBeige'}`}
             onClick={() => setActiveSection(section)}
           >
             {section.charAt(0).toUpperCase() + section.slice(1)}

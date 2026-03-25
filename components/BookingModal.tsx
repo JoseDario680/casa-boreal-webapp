@@ -86,14 +86,14 @@ export default function BookingModal({ classData, isOpen, onClose, onSuccess, cr
                 <div className="mb-4 text-center text-casaCoffee">¿Usar 1 crédito para reservar esta clase?</div>
                 <div className="flex gap-4 justify-center">
                   <button
-                    className="px-4 py-2 rounded bg-casaOlive text-white font-bold hover:bg-casaCoffee transition disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl bg-casaCoffee text-white font-semibold hover:brightness-110 transition-all shadow-sm disabled:opacity-50"
                     onClick={handleConfirm}
                     disabled={loading || (credits !== undefined && credits < 1) || classData.availableSpots === 0}
                   >
                     {loading ? 'Reservando...' : 'Confirmar Reservación'}
                   </button>
                   <button
-                    className="px-4 py-2 rounded bg-casaBeige text-casaCoffee font-bold hover:bg-casaCream transition"
+                    className="px-5 py-2.5 rounded-xl border-2 border-casaCoffee/20 text-casaCoffee font-semibold hover:bg-casaBeige transition-all"
                     onClick={onClose}
                     disabled={loading}
                   >Cancelar</button>

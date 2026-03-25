@@ -2,10 +2,23 @@
    FUENTES Y TAILWIND
 ================================= */
 @import "tailwindcss";
+@config "../tailwind.config.js";
 @import '@fontsource/cormorant-garamond/400.css';
 @import '@fontsource/cormorant-garamond/700.css';
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/700.css';
+
+/* ===============================
+   CUSTOM THEME (Tailwind v4)
+================================= */
+@theme {
+  --color-casaBeige: #F5EBDC;
+  --color-casaCoffee: #5C4033;
+  --color-casaOlive: #8B9556;
+  --color-casaCream: #FAF8F3;
+  --font-heading: 'Cormorant Garamond', serif;
+  --font-body: 'Inter', sans-serif;
+}
 
 /* ===============================
    BASE STYLES

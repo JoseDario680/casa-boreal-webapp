@@ -73,7 +73,7 @@ const AccountSection = () => {
         <div className="flex gap-4">
           <button
             type="submit"
-            className="bg-casaOlive text-white px-4 py-2 rounded-lg"
+            className="bg-casaCoffee text-white px-5 py-2.5 rounded-xl font-semibold hover:brightness-110 transition-all shadow-sm disabled:opacity-50"
             disabled={saving}
           >
             {saving ? 'Guardando...' : 'Actualizar Contraseña'}
